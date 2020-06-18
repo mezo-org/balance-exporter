@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -115,6 +116,7 @@ func OpenAddresses(filename string) error {
 
 func main() {
 	gethUrl := os.Getenv("GETH")
+	checkFrequencySeconds := getEnvCheckFrequency()
 	port = os.Getenv("PORT")
 	prefix = os.Getenv("PREFIX")
 
@@ -140,8 +142,8 @@ func main() {
 			}
 			t2 := time.Now()
 			loadSeconds = t2.Sub(t1).Seconds()
-			fmt.Printf("Finished checking %v wallets in %0.0f seconds, sleeping for %v seconds.\n", len(allWatching), loadSeconds, 15)
-			time.Sleep(15 * time.Second)
+			fmt.Printf("Finished checking %v wallets in %0.0f seconds, sleeping for %v seconds.\n", len(allWatching), loadSeconds, checkFrequencySeconds)
+			time.Sleep(time.Duration(checkFrequencySeconds) * time.Second)
 		}
 	}()
 
@@ -150,4 +152,20 @@ func main() {
 	fmt.Printf("ETHexporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
 	http.HandleFunc("/metrics", MetricsHttp)
 	panic(http.ListenAndServe("0.0.0.0:"+port, nil))
+}
+
+func getEnvCheckFrequency() int {
+	defaultCheckFrequencySeconds := 60
+	checkFrequencySecondsString := os.Getenv("CHECK_FREQUENCY_SECONDS")
+
+	if len(checkFrequencySecondsString) > 0 {
+		checkFrequencySeconds, err := strconv.Atoi(checkFrequencySecondsString)
+		if err != nil {
+			return defaultCheckFrequencySeconds
+		}
+
+		return checkFrequencySeconds
+	} else {
+		return defaultCheckFrequencySeconds
+	}
 }
