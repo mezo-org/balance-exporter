@@ -1,4 +1,4 @@
-FROM golang
+FROM golang:1.13
 
 ADD . /go/src/github.com/hunterlong/ethexporter
 RUN cd /go/src/github.com/hunterlong/ethexporter && go get
