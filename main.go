@@ -134,7 +134,9 @@ func main() {
 	port = os.Getenv("PORT")
 	prefix = os.Getenv("PREFIX")
 
-	err := OpenAddresses("addresses.txt")
+	addressesFilePath := os.Getenv("ADDRESSES_FILE")
+
+	err := OpenAddresses(addressesFilePath)
 	if err != nil {
 		panic(err)
 	}
