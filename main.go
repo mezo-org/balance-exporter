@@ -3,15 +3,17 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 var (
@@ -42,7 +44,6 @@ func ConnectionToGeth(url string) error {
 	return err
 }
 
-//
 // Fetch ETH balance from Geth server
 func GetEthBalance(address string) *big.Float {
 	balance, err := eth.BalanceAt(context.TODO(), common.HexToAddress(address), nil)
@@ -52,7 +53,6 @@ func GetEthBalance(address string) *big.Float {
 	return ToEther(balance)
 }
 
-//
 // Fetch ETH balance from Geth server
 func CurrentBlock() uint64 {
 	block, err := eth.BlockByNumber(context.TODO(), nil)
@@ -63,7 +63,6 @@ func CurrentBlock() uint64 {
 	return block.NumberU64()
 }
 
-//
 // CONVERTS WEI TO ETH
 func ToEther(o *big.Int) *big.Float {
 	pul, int := big.NewFloat(0), big.NewFloat(0)
@@ -72,7 +71,6 @@ func ToEther(o *big.Int) *big.Float {
 	return pul
 }
 
-//
 // HTTP response handler for /metrics
 func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	var allOut []string
@@ -93,7 +91,6 @@ func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strings.Join(allOut, "\n"))
 }
 
-//
 // Open the addresses.txt file (name:address)
 func OpenAddresses(filename string) error {
 	file, err := os.Open(filename)
