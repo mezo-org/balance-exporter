@@ -99,7 +99,20 @@ func OpenAddresses(filename string) error {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		object := strings.Split(scanner.Text(), ":")
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments.
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		object := strings.Split(line, ":")
+
+		// Skip invalid lines.
+		if len(object) < 2 {
+			continue
+		}
+
 		if common.IsHexAddress(object[1]) {
 			w := &Watching{
 				Name:    object[0],
