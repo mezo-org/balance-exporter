@@ -30,7 +30,11 @@ type Watching struct {
 	Balance string
 }
 
-//
+func (w *Watching) String() string {
+	result, _ := json.Marshal(w)
+	return string(result)
+}
+
 // Connect to geth server
 func ConnectionToGeth(url string) error {
 	var err error
