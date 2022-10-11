@@ -27,6 +27,14 @@ func TestOpenAddresses(t *testing.T) {
 			Name:    "kraken",
 			Address: "0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0",
 		},
+		{
+			Name:    "duplicated-name",
+			Address: "0x36Fb6cd260A63719BB7EfC865e1aEaa60922a6d9",
+		},
+		{
+			Name:    "duplicated-name",
+			Address: "0xF6Af0fD6aA7c78EA7038D04F901493f375234f24",
+		},
 	}
 
 	OpenAddresses("test/data/addresses.txt")
