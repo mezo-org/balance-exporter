@@ -3,15 +3,17 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 var (
@@ -30,7 +32,11 @@ type Watching struct {
 	Balance string
 }
 
-//
+func (w *Watching) String() string {
+	result, _ := json.Marshal(w)
+	return string(result)
+}
+
 // Connect to geth server
 func ConnectionToGeth(url string) error {
 	var err error
@@ -38,7 +44,6 @@ func ConnectionToGeth(url string) error {
 	return err
 }
 
-//
 // Fetch ETH balance from Geth server
 func GetEthBalance(address string) *big.Float {
 	balance, err := eth.BalanceAt(context.TODO(), common.HexToAddress(address), nil)
@@ -48,7 +53,6 @@ func GetEthBalance(address string) *big.Float {
 	return ToEther(balance)
 }
 
-//
 // Fetch ETH balance from Geth server
 func CurrentBlock() uint64 {
 	block, err := eth.BlockByNumber(context.TODO(), nil)
@@ -59,7 +63,6 @@ func CurrentBlock() uint64 {
 	return block.NumberU64()
 }
 
-//
 // CONVERTS WEI TO ETH
 func ToEther(o *big.Int) *big.Float {
 	pul, int := big.NewFloat(0), big.NewFloat(0)
@@ -68,7 +71,6 @@ func ToEther(o *big.Int) *big.Float {
 	return pul
 }
 
-//
 // HTTP response handler for /metrics
 func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	var allOut []string
@@ -89,7 +91,6 @@ func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, strings.Join(allOut, "\n"))
 }
 
-//
 // Open the addresses.txt file (name:address)
 func OpenAddresses(filename string) error {
 	file, err := os.Open(filename)
@@ -99,7 +100,20 @@ func OpenAddresses(filename string) error {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		object := strings.Split(scanner.Text(), ":")
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments.
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		object := strings.Split(line, ":")
+
+		// Skip invalid lines.
+		if len(object) < 2 {
+			continue
+		}
+
 		if common.IsHexAddress(object[1]) {
 			w := &Watching{
 				Name:    object[0],
@@ -120,7 +134,9 @@ func main() {
 	port = os.Getenv("PORT")
 	prefix = os.Getenv("PREFIX")
 
-	err := OpenAddresses("addresses.txt")
+	addressesFilePath := os.Getenv("ADDRESSES_FILE")
+
+	err := OpenAddresses(addressesFilePath)
 	if err != nil {
 		panic(err)
 	}

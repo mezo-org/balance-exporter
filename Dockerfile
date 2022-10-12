@@ -1,16 +1,30 @@
-FROM golang:1.13
+FROM golang:1.18-alpine AS base
 
-ADD . /go/src/github.com/hunterlong/ethexporter
-RUN cd /go/src/github.com/hunterlong/ethexporter && go get
-RUN go install github.com/hunterlong/ethexporter
+RUN apk add --update --no-cache \
+    g++ 
+
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+RUN go mod download
+
+COPY ./ ./
+
+RUN go build -o ethexporter
+
+FROM alpine as runtime
+
+ENV BIN_PATH=/usr/local/bin
+
+COPY --from=base /app/ethexporter $BIN_PATH
 
 ENV GETH https://mainnet.infura.io
 ENV PORT 9015
-
-RUN mkdir /app
-WORKDIR /app
-ADD addresses.txt /app
+ENV ADDRESSES_FILE "/data/addresses.txt"
 
 EXPOSE 9015
 
-ENTRYPOINT /go/bin/ethexporter
+VOLUME [ "/data" ]
+
+ENTRYPOINT ["ethexporter"]
