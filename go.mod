@@ -1,4 +1,4 @@
-module github.com/boar-network/ethexporter
+module github.com/mezo-org/balance-exporter
 
 go 1.18
 

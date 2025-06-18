@@ -24,6 +24,7 @@ var (
 	loadSeconds float64
 	totalLoaded int64
 	eth         *ethclient.Client
+	chainId     string
 )
 
 type Watching struct {
@@ -82,12 +83,12 @@ func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 		bal := big.NewFloat(0)
 		bal.SetString(v.Balance)
 		total.Add(total, bal)
-		allOut = append(allOut, fmt.Sprintf("%veth_balance{name=\"%v\",address=\"%v\"} %v", prefix, v.Name, v.Address, v.Balance))
+		allOut = append(allOut, fmt.Sprintf("%vaccount_balance{name=\"%v\",address=\"%v\",chain_id=\"%s\"} %v", prefix, v.Name, v.Address, chainId, v.Balance))
 	}
-	allOut = append(allOut, fmt.Sprintf("%veth_balance_total %0.18f", prefix, total))
-	allOut = append(allOut, fmt.Sprintf("%veth_load_seconds %0.2f", prefix, loadSeconds))
-	allOut = append(allOut, fmt.Sprintf("%veth_loaded_addresses %v", prefix, totalLoaded))
-	allOut = append(allOut, fmt.Sprintf("%veth_total_addresses %v", prefix, len(allWatching)))
+	allOut = append(allOut, fmt.Sprintf("%vaccount_balance_total %0.18f", prefix, total))
+	allOut = append(allOut, fmt.Sprintf("%vaccount_load_seconds %0.2f", prefix, loadSeconds))
+	allOut = append(allOut, fmt.Sprintf("%vaccount_loaded_addresses %v", prefix, totalLoaded))
+	allOut = append(allOut, fmt.Sprintf("%vaccount_total_addresses %v", prefix, len(allWatching)))
 	fmt.Fprintln(w, strings.Join(allOut, "\n"))
 }
 
@@ -129,7 +130,7 @@ func OpenAddresses(filename string) error {
 }
 
 func main() {
-	gethUrl := os.Getenv("GETH")
+	gethUrl := os.Getenv("CHAIN_RPC_URL")
 	checkFrequencySeconds := getEnvCheckFrequency()
 	port = os.Getenv("PORT")
 	prefix = os.Getenv("PREFIX")
@@ -145,6 +146,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	chainIdBigInt, err := eth.ChainID(context.TODO())
+	if err != nil {
+		panic(fmt.Sprintf("Error fetching chain ID: %v", err))
+	}
+
+	chainId = chainIdBigInt.String()
 
 	// check address balances
 	go func() {
@@ -165,7 +173,7 @@ func main() {
 
 	block := CurrentBlock()
 
-	fmt.Printf("ETHexporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
+	fmt.Printf("balance-exporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
 	http.HandleFunc("/metrics", MetricsHttp)
 	panic(http.ListenAndServe("0.0.0.0:"+port, nil))
 }
