@@ -120,18 +120,17 @@ func CallContractFunction(contractAddress string, abiString string, functionName
 	}
 
 	// Unpack the result
-	var output []interface{}
-	err = contractABI.UnpackIntoInterface(&output, functionName, result)
+	outputs, err := contractABI.Unpack(functionName, result)
 	if err != nil {
 		return "", fmt.Errorf("failed to unpack result: %v", err)
 	}
 
 	// Convert result to string
-	if len(output) > 0 {
-		if bigInt, ok := output[0].(*big.Int); ok {
+	if len(outputs) > 0 {
+		if bigInt, ok := outputs[0].(*big.Int); ok {
 			return bigInt.String(), nil
 		}
-		return fmt.Sprintf("%v", output[0]), nil
+		return fmt.Sprintf("%v", outputs[0]), nil
 	}
 
 	return "0", nil

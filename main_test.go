@@ -101,3 +101,38 @@ func TestCallContractFunction(t *testing.T) {
 		t.Errorf("Expected 'failed to call contract' error, but got: %v", err)
 	}
 }
+
+func TestCallContractFunctionHappyPath(t *testing.T) {
+	// Skip this test if we don't have the staging URL set
+	stagingURL := "https://rpc.test.mezo.org"
+
+	// Connect to staging blockchain
+	err := ConnectionToGeth(stagingURL)
+	if err != nil {
+		t.Skipf("Skipping integration test - cannot connect to staging blockchain: %v", err)
+	}
+
+	// Test with the actual PCV contract ABI
+	abiString := `[{"inputs":[],"name":"debtToPay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
+	contractAddress := "0x4dDD70f4C603b6089c07875Be02fEdFD626b80Af"
+
+	// Call the contract function
+	result, err := CallContractFunction(contractAddress, abiString, "debtToPay")
+
+	// This should succeed with staging blockchain connection
+	if err != nil {
+		t.Errorf("Expected successful contract call, but got error: %v", err)
+	}
+
+	// Result should be a numeric string (could be "0" or any positive number)
+	if result == "" {
+		t.Errorf("Expected non-empty result, got empty string")
+	}
+
+	// Result should be parseable as a number (basic validation)
+	if !strings.ContainsAny(result, "0123456789") {
+		t.Errorf("Expected numeric result, got: %s", result)
+	}
+
+	t.Logf("Successfully called debtToPay function, result: %s", result)
+}
