@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -51,7 +52,7 @@ func TestOpenAddresses(t *testing.T) {
 func TestOpenContracts(t *testing.T) {
 	// Reset the global variable before test
 	allContracts = nil
-	
+
 	expectedResult := []*ContractWatching{
 		{
 			Name:     "PCV",
@@ -80,5 +81,23 @@ func TestOpenContracts(t *testing.T) {
 		if allContracts[0].Function != expectedResult[0].Function {
 			t.Errorf("Expected function %s, got %s", expectedResult[0].Function, allContracts[0].Function)
 		}
+	}
+}
+
+func TestCallContractFunction(t *testing.T) {
+	// Test with a simple ABI for debtToPay function
+	abiString := `[{"inputs":[],"name":"debtToPay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
+
+	// This should return an error since we don't have a blockchain connection set up
+	result, err := CallContractFunction("0x4dDD70f4C603b6089c07875Be02fEdFD626b80Af", abiString, "debtToPay")
+
+	// We expect an error since eth client is not connected
+	if err == nil {
+		t.Errorf("Expected error when calling contract without blockchain connection, but got result: %v", result)
+	}
+
+	// The error should mention that we failed to call the contract
+	if err != nil && !strings.Contains(err.Error(), "failed to call contract") {
+		t.Errorf("Expected 'failed to call contract' error, but got: %v", err)
 	}
 }

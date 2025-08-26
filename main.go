@@ -12,20 +12,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 var (
-	allWatching   []*Watching
-	allContracts  []*ContractWatching
-	port          string
-	updates       string
-	prefix        string
-	loadSeconds   float64
-	totalLoaded   int64
-	eth           *ethclient.Client
-	chainId       string
+	allWatching  []*Watching
+	allContracts []*ContractWatching
+	port         string
+	updates      string
+	prefix       string
+	loadSeconds  float64
+	totalLoaded  int64
+	eth          *ethclient.Client
+	chainId      string
 )
 
 type Watching struct {
@@ -84,6 +85,55 @@ func ToEther(o *big.Int) *big.Float {
 	int.SetInt(o)
 	pul.Mul(big.NewFloat(0.000000000000000001), int)
 	return pul
+}
+
+func CallContractFunction(contractAddress string, abiString string, functionName string) (string, error) {
+	// Parse ABI
+	contractABI, err := abi.JSON(strings.NewReader(abiString))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse ABI: %v", err)
+	}
+
+	// Pack the function call
+	data, err := contractABI.Pack(functionName)
+	if err != nil {
+		return "", fmt.Errorf("failed to pack function call: %v", err)
+	}
+
+	// Create call message
+	contractAddr := common.HexToAddress(contractAddress)
+	msg := ethereum.CallMsg{
+		To:   &contractAddr,
+		Data: data,
+	}
+
+	// Check if eth client is connected
+	if eth == nil {
+		return "", fmt.Errorf("failed to call contract: eth client not connected")
+	}
+
+	// Call the contract
+	result, err := eth.CallContract(context.TODO(), msg, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to call contract: %v", err)
+	}
+
+	// Unpack the result
+	var output []interface{}
+	err = contractABI.UnpackIntoInterface(&output, functionName, result)
+	if err != nil {
+		return "", fmt.Errorf("failed to unpack result: %v", err)
+	}
+
+	// Convert result to string
+	if len(output) > 0 {
+		if bigInt, ok := output[0].(*big.Int); ok {
+			return bigInt.String(), nil
+		}
+		return fmt.Sprintf("%v", output[0]), nil
+	}
+
+	return "0", nil
 }
 
 // HTTP response handler for /metrics
@@ -148,13 +198,13 @@ func OpenContracts(filename string) error {
 	if filename == "" {
 		return nil
 	}
-	
+
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil
 	}
 	defer file.Close()
-	
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
