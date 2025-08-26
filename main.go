@@ -17,14 +17,15 @@ import (
 )
 
 var (
-	allWatching []*Watching
-	port        string
-	updates     string
-	prefix      string
-	loadSeconds float64
-	totalLoaded int64
-	eth         *ethclient.Client
-	chainId     string
+	allWatching   []*Watching
+	allContracts  []*ContractWatching
+	port          string
+	updates       string
+	prefix        string
+	loadSeconds   float64
+	totalLoaded   int64
+	eth           *ethclient.Client
+	chainId       string
 )
 
 type Watching struct {
@@ -142,6 +143,54 @@ func OpenAddresses(filename string) error {
 	return err
 }
 
+// Open the contracts.txt file (name|address|abi|function)
+func OpenContracts(filename string) error {
+	if filename == "" {
+		return nil
+	}
+	
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments.
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Parse line with format: name|address|abi|function
+		parts := strings.Split(line, "|")
+		if len(parts) < 4 {
+			continue
+		}
+
+		name := parts[0]
+		address := parts[1]
+		abiString := parts[2]
+		function := parts[3]
+
+		if common.IsHexAddress(address) {
+			c := &ContractWatching{
+				Name:     name,
+				Address:  address,
+				ABI:      abiString,
+				Function: function,
+			}
+			allContracts = append(allContracts, c)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	gethUrl := os.Getenv("CHAIN_RPC_URL")
 	checkFrequencySeconds := getEnvCheckFrequency()
@@ -149,8 +198,14 @@ func main() {
 	prefix = os.Getenv("PREFIX")
 
 	addressesFilePath := os.Getenv("ADDRESSES_FILE")
+	contractsFilePath := os.Getenv("CONTRACTS_FILE")
 
 	err := OpenAddresses(addressesFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	err = OpenContracts(contractsFilePath)
 	if err != nil {
 		panic(err)
 	}
