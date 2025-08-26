@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum"
 )
 
 var (
@@ -153,7 +153,7 @@ func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	allOut = append(allOut, fmt.Sprintf("%vaccount_load_seconds %0.2f", prefix, loadSeconds))
 	allOut = append(allOut, fmt.Sprintf("%vaccount_loaded_addresses %v", prefix, totalLoaded))
 	allOut = append(allOut, fmt.Sprintf("%vaccount_total_addresses %v", prefix, len(allWatching)))
-	
+
 	// Add contract function results
 	for _, c := range allContracts {
 		if c.Result == "" {
@@ -162,7 +162,7 @@ func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 		allOut = append(allOut, fmt.Sprintf("%vcontract_function_result{contract=\"%v\",function=\"%v\",address=\"%v\",chain_id=\"%s\"} %v", prefix, c.Name, c.Function, c.Address, chainId, c.Result))
 	}
 	allOut = append(allOut, fmt.Sprintf("%vcontract_total_contracts %v", prefix, len(allContracts)))
-	
+
 	fmt.Fprintln(w, strings.Join(allOut, "\n"))
 }
 
@@ -288,13 +288,13 @@ func main() {
 			totalLoaded = 0
 			t1 := time.Now()
 			fmt.Printf("Checking %v wallets and %v contracts...\n", len(allWatching), len(allContracts))
-			
+
 			// Check wallet balances
 			for _, v := range allWatching {
 				v.Balance = GetEthBalance(v.Address).String()
 				totalLoaded++
 			}
-			
+
 			// Check contract functions
 			for _, c := range allContracts {
 				result, err := CallContractFunction(c.Address, c.ABI, c.Function)
@@ -306,7 +306,7 @@ func main() {
 				}
 				totalLoaded++
 			}
-			
+
 			t2 := time.Now()
 			loadSeconds = t2.Sub(t1).Seconds()
 			fmt.Printf("Finished checking %v wallets and %v contracts in %0.0f seconds, sleeping for %v seconds.\n", len(allWatching), len(allContracts), loadSeconds, checkFrequencySeconds)
