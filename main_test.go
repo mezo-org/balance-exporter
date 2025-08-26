@@ -47,3 +47,38 @@ func TestOpenAddresses(t *testing.T) {
 		)
 	}
 }
+
+func TestOpenContracts(t *testing.T) {
+	// Reset the global variable before test
+	allContracts = nil
+	
+	expectedResult := []*ContractWatching{
+		{
+			Name:     "PCV",
+			Address:  "0x4dDD70f4C603b6089c07875Be02fEdFD626b80Af",
+			ABI:      "[{\"inputs\":[],\"name\":\"debtToPay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+			Function: "debtToPay",
+		},
+	}
+
+	err := OpenContracts("test/data/contracts.txt")
+	if err != nil {
+		t.Errorf("OpenContracts returned error: %v", err)
+	}
+
+	if len(allContracts) != len(expectedResult) {
+		t.Errorf("Expected %d contracts, got %d", len(expectedResult), len(allContracts))
+	}
+
+	if len(allContracts) > 0 {
+		if allContracts[0].Name != expectedResult[0].Name {
+			t.Errorf("Expected name %s, got %s", expectedResult[0].Name, allContracts[0].Name)
+		}
+		if allContracts[0].Address != expectedResult[0].Address {
+			t.Errorf("Expected address %s, got %s", expectedResult[0].Address, allContracts[0].Address)
+		}
+		if allContracts[0].Function != expectedResult[0].Function {
+			t.Errorf("Expected function %s, got %s", expectedResult[0].Function, allContracts[0].Function)
+		}
+	}
+}
