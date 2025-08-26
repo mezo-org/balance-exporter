@@ -33,8 +33,21 @@ type Watching struct {
 	Balance string
 }
 
+type ContractWatching struct {
+	Name     string
+	Address  string
+	ABI      string
+	Function string
+	Result   string
+}
+
 func (w *Watching) String() string {
 	result, _ := json.Marshal(w)
+	return string(result)
+}
+
+func (c *ContractWatching) String() string {
+	result, _ := json.Marshal(c)
 	return string(result)
 }
 
