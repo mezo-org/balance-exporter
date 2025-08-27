@@ -11,6 +11,7 @@ RUN go mod download
 
 COPY ./ ./
 
+RUN go mod tidy
 RUN go build -o balance-exporter
 
 FROM alpine as runtime
