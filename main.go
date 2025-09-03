@@ -133,7 +133,7 @@ func CallContractFunction(contractAddress string, abiString string, functionName
 		return fmt.Sprintf("%v", outputs[0]), nil
 	}
 
-	return "0", nil
+	return "", fmt.Errorf("no outputs returned from contract function")
 }
 
 // HTTP response handler for /metrics
