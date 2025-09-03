@@ -300,7 +300,7 @@ func main() {
 				result, err := CallContractFunction(c.Address, c.ABI, c.Function)
 				if err != nil {
 					fmt.Printf("Error calling contract function %s on %s: %v\n", c.Function, c.Name, err)
-					c.Result = "0"
+					c.Result = ""
 				} else {
 					c.Result = result
 				}
