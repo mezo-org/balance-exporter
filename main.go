@@ -88,7 +88,7 @@ func ToEther(o *big.Int) *big.Float {
 	return pul
 }
 
-func CallContractFunction(contractAddress string, abiString string, functionName string) (string, error) {
+func CallContractFunction(contractAddress string, abiString string, functionName string, params ...interface{}) (string, error) {
 	// Parse ABI
 	contractABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
@@ -96,7 +96,7 @@ func CallContractFunction(contractAddress string, abiString string, functionName
 	}
 
 	// Pack the function call
-	data, err := contractABI.Pack(functionName)
+	data, err := contractABI.Pack(functionName, params...)
 	if err != nil {
 		return "", fmt.Errorf("failed to pack function call: %v", err)
 	}
