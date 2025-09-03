@@ -128,7 +128,7 @@ func CallContractFunction(contractAddress string, abiString string, functionName
 	// Convert result to string
 	if len(outputs) > 0 {
 		if bigInt, ok := outputs[0].(*big.Int); ok {
-			return bigInt.String(), nil
+			return ToEther(bigInt).String(), nil
 		}
 		return fmt.Sprintf("%v", outputs[0]), nil
 	}
