@@ -1,4 +1,4 @@
-module github.com/mezo-org/balance-exporter
+module github.com/mezo-org/contracts-exporter
 
 go 1.18
 
