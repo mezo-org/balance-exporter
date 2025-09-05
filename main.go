@@ -316,7 +316,7 @@ func main() {
 
 	block := CurrentBlock()
 
-	fmt.Printf("balance-exporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
+	fmt.Printf("contracts-exporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
 	http.HandleFunc("/metrics", MetricsHttp)
 	panic(http.ListenAndServe("0.0.0.0:"+port, nil))
 }
