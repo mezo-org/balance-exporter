@@ -11,13 +11,14 @@ RUN go mod download
 
 COPY ./ ./
 
-RUN go build -o balance-exporter
+RUN go mod tidy
+RUN go build -o contracts-exporter
 
 FROM alpine as runtime
 
 ENV BIN_PATH=/usr/local/bin
 
-COPY --from=base /app/balance-exporter $BIN_PATH
+COPY --from=base /app/contracts-exporter $BIN_PATH
 
 ENV CHAIN_RPC_URL https://mainnet.infura.io
 ENV PORT 9015
@@ -27,4 +28,4 @@ EXPOSE 9015
 
 VOLUME [ "/data" ]
 
-ENTRYPOINT ["balance-exporter"]
+ENTRYPOINT ["contracts-exporter"]

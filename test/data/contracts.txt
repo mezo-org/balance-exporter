@@ -1,0 +1,4 @@
+# Contract monitoring configuration
+# Format: name|address|abi|function
+# Example PCV contract with debtToPay function
+PCV|0x4dDD70f4C603b6089c07875Be02fEdFD626b80Af|[{"inputs":[],"name":"debtToPay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]|debtToPay

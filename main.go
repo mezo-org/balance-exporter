@@ -12,19 +12,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 var (
-	allWatching []*Watching
-	port        string
-	updates     string
-	prefix      string
-	loadSeconds float64
-	totalLoaded int64
-	eth         *ethclient.Client
-	chainId     string
+	allWatching  []*Watching
+	allContracts []*ContractWatching
+	port         string
+	updates      string
+	prefix       string
+	loadSeconds  float64
+	totalLoaded  int64
+	eth          *ethclient.Client
+	chainId      string
 )
 
 type Watching struct {
@@ -33,8 +36,21 @@ type Watching struct {
 	Balance string
 }
 
+type ContractWatching struct {
+	Name     string
+	Address  string
+	ABI      string
+	Function string
+	Result   string
+}
+
 func (w *Watching) String() string {
 	result, _ := json.Marshal(w)
+	return string(result)
+}
+
+func (c *ContractWatching) String() string {
+	result, _ := json.Marshal(c)
 	return string(result)
 }
 
@@ -72,6 +88,54 @@ func ToEther(o *big.Int) *big.Float {
 	return pul
 }
 
+func CallContractFunction(contractAddress string, abiString string, functionName string, params ...interface{}) (string, error) {
+	// Parse ABI
+	contractABI, err := abi.JSON(strings.NewReader(abiString))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse ABI: %v", err)
+	}
+
+	// Pack the function call
+	data, err := contractABI.Pack(functionName, params...)
+	if err != nil {
+		return "", fmt.Errorf("failed to pack function call: %v", err)
+	}
+
+	// Create call message
+	contractAddr := common.HexToAddress(contractAddress)
+	msg := ethereum.CallMsg{
+		To:   &contractAddr,
+		Data: data,
+	}
+
+	// Check if eth client is connected
+	if eth == nil {
+		return "", fmt.Errorf("failed to call contract: eth client not connected")
+	}
+
+	// Call the contract
+	result, err := eth.CallContract(context.TODO(), msg, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to call contract: %v", err)
+	}
+
+	// Unpack the result
+	outputs, err := contractABI.Unpack(functionName, result)
+	if err != nil {
+		return "", fmt.Errorf("failed to unpack result: %v", err)
+	}
+
+	// Convert result to string
+	if len(outputs) > 0 {
+		if bigInt, ok := outputs[0].(*big.Int); ok {
+			return bigInt.String(), nil
+		}
+		return fmt.Sprintf("%v", outputs[0]), nil
+	}
+
+	return "", fmt.Errorf("no outputs returned from contract function")
+}
+
 // HTTP response handler for /metrics
 func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	var allOut []string
@@ -89,6 +153,16 @@ func MetricsHttp(w http.ResponseWriter, r *http.Request) {
 	allOut = append(allOut, fmt.Sprintf("%vaccount_load_seconds %0.2f", prefix, loadSeconds))
 	allOut = append(allOut, fmt.Sprintf("%vaccount_loaded_addresses %v", prefix, totalLoaded))
 	allOut = append(allOut, fmt.Sprintf("%vaccount_total_addresses %v", prefix, len(allWatching)))
+
+	// Add contract function results
+	for _, c := range allContracts {
+		if c.Result == "" {
+			c.Result = "0"
+		}
+		allOut = append(allOut, fmt.Sprintf("%vcontract_function_result{contract=\"%v\",function=\"%v\",address=\"%v\",chain_id=\"%s\"} %v", prefix, c.Name, c.Function, c.Address, chainId, c.Result))
+	}
+	allOut = append(allOut, fmt.Sprintf("%vcontract_total_contracts %v", prefix, len(allContracts)))
+
 	fmt.Fprintln(w, strings.Join(allOut, "\n"))
 }
 
@@ -129,6 +203,54 @@ func OpenAddresses(filename string) error {
 	return err
 }
 
+// Open the contracts.txt file (name|address|abi|function)
+func OpenContracts(filename string) error {
+	if filename == "" {
+		return nil
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments.
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Parse line with format: name|address|abi|function
+		parts := strings.Split(line, "|")
+		if len(parts) < 4 {
+			continue
+		}
+
+		name := parts[0]
+		address := parts[1]
+		abiString := parts[2]
+		function := parts[3]
+
+		if common.IsHexAddress(address) {
+			c := &ContractWatching{
+				Name:     name,
+				Address:  address,
+				ABI:      abiString,
+				Function: function,
+			}
+			allContracts = append(allContracts, c)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	gethUrl := os.Getenv("CHAIN_RPC_URL")
 	checkFrequencySeconds := getEnvCheckFrequency()
@@ -136,8 +258,14 @@ func main() {
 	prefix = os.Getenv("PREFIX")
 
 	addressesFilePath := os.Getenv("ADDRESSES_FILE")
+	contractsFilePath := os.Getenv("CONTRACTS_FILE")
 
 	err := OpenAddresses(addressesFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	err = OpenContracts(contractsFilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -159,21 +287,36 @@ func main() {
 		for {
 			totalLoaded = 0
 			t1 := time.Now()
-			fmt.Printf("Checking %v wallets...\n", len(allWatching))
+			fmt.Printf("Checking %v wallets and %v contracts...\n", len(allWatching), len(allContracts))
+
+			// Check wallet balances
 			for _, v := range allWatching {
 				v.Balance = GetEthBalance(v.Address).String()
 				totalLoaded++
 			}
+
+			// Check contract functions
+			for _, c := range allContracts {
+				result, err := CallContractFunction(c.Address, c.ABI, c.Function)
+				if err != nil {
+					fmt.Printf("Error calling contract function %s on %s: %v\n", c.Function, c.Name, err)
+					c.Result = ""
+				} else {
+					c.Result = result
+				}
+				totalLoaded++
+			}
+
 			t2 := time.Now()
 			loadSeconds = t2.Sub(t1).Seconds()
-			fmt.Printf("Finished checking %v wallets in %0.0f seconds, sleeping for %v seconds.\n", len(allWatching), loadSeconds, checkFrequencySeconds)
+			fmt.Printf("Finished checking %v wallets and %v contracts in %0.0f seconds, sleeping for %v seconds.\n", len(allWatching), len(allContracts), loadSeconds, checkFrequencySeconds)
 			time.Sleep(time.Duration(checkFrequencySeconds) * time.Second)
 		}
 	}()
 
 	block := CurrentBlock()
 
-	fmt.Printf("balance-exporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
+	fmt.Printf("contracts-exporter has started on port %v using Geth server: %v at block #%v\n", port, gethUrl, block)
 	http.HandleFunc("/metrics", MetricsHttp)
 	panic(http.ListenAndServe("0.0.0.0:"+port, nil))
 }
