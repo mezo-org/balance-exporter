@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine AS base
+FROM golang:1.26.10-alpine AS base
 
 RUN apk add --update --no-cache \
     g++
@@ -14,7 +14,9 @@ COPY ./ ./
 RUN go mod tidy
 RUN go build -o contracts-exporter
 
-FROM alpine as runtime
+FROM alpine:3.22 AS runtime
+
+RUN apk --no-cache upgrade && apk --no-cache add ca-certificates
 
 ENV BIN_PATH=/usr/local/bin
 
